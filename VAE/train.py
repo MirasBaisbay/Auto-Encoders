@@ -79,7 +79,35 @@ for epoch in range(NUM_EPOCHS):
         save_image(comparison.cpu(),
                   f'reconstructions/reconstruction_epoch_{epoch}.png',
                   nrow=8)
-
+        """
+        Editing images:
+            1. Load a sample image after training
+            2. Use encoder to get mu and sigma of the image (latent space)
+            3. Modify the latent space (mu and sigma)
+            4. Use decoder to get the modified image
+            5. Save the modified image
+        """
+        # Load a sample image
+        sample = next(iter(train_loader))[0][0].to(DEVICE)
+        sample = sample.view(-1, INPUT_DIM)
+        
+        # Get mu and sigma
+        mu, sigma = model.encoder(sample)
+        
+        # Modify the latent space
+        mu += 0.1
+        # sigma += 0.1
+        
+        # Get the modified image
+        modified = model.reparameterize(mu, sigma)
+        modified = model.decoder(modified)
+        
+        # Save the modified image
+        save_image(modified.view(1, 1, 28, 28),
+                  f'samples/modified_epoch_{epoch}.png')
+       
+        
+        
     print(f'====> Epoch: {epoch} Average loss: {total_loss / len(train_loader.dataset):.4f}')
 
         
