@@ -12,7 +12,7 @@ backends.cudnn.benchmark = True
 
 os.makedirs('PixelCNN_results', exist_ok=True)
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if cuda.is_available() else "cpu")
 BATCH_SIZE = 64
 NUM_EPOCHS = 20
 LR_RATE = 3e-4
@@ -24,7 +24,38 @@ print("Device:", DEVICE)
 class MaskedConv2d(nn.Conv2d):
     def __init__(self, mask_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        """
+        Creating a mask for convolutional layer with the same shape as the convolutional weights
+        -- initialization all of them with ones (torch.ones_like(self.weight))
+        -- register_buffer is makes mask persistent but not a trainable parameter (no backpropagation)
         
+        _, _, height, width = self.weight.shape
+        we are taking the height and width of the weight tensor and ignoring the in and out channels
+        
+        -- creating a mask:
+        self.mask[:, :, height // 2, width // 2 + (mask_type == 'B'):] = 0
+        
+        height // 2 - is the center of the height
+        width // 2 - is the center of the width
+        
+        mask_type == 'B' - if the mask type is 'B' then we are setting the mask to zero from the center of the width
+        to the end of the width
+        
+        self.mask[:, :, height // 2 + 1:] = 0 - setting the mask to zero from the center of the height to the end of the height
+        
+        Type A mask (7×7 kernel):    Type B mask (7×7 kernel):
+        
+            1 1 1 1 0 0 0               1 1 1 1 0 0 0
+            1 1 1 1 0 0 0               1 1 1 1 0 0 0
+            1 1 1 1 0 0 0               1 1 1 1 0 0 0
+            1 1 1 0 0 0 0               1 1 1 1 0 0 0
+            0 0 0 0 0 0 0               0 0 0 0 0 0 0
+            0 0 0 0 0 0 0               0 0 0 0 0 0 0
+            0 0 0 0 0 0 0               0 0 0 0 0 0 0
+            
+        Type A mask is used for initial layers (because we dont have any information about the pixel we are predicting)
+        Type B mask is used for subsequent layers (because we have information about the pixel we are predicting)
+        """
         self.register_buffer('mask', torch.ones_like(self.weight))
         _, _, height, width = self.weight.shape
         
@@ -149,3 +180,34 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+    
+"""
+Some notes about how does PixelCNN work from this article(https://sergeiturukin.com/2017/02/22/pixelcnn.html):
+
+As illustrated it has first convolution layer with mask type ‘A’ that means center pixel
+in mask is zeroed, i.e. we guarantee model won’t get access to pixel it is about to predict.
+This is really obvious: if we allow pixel-to-be-predicted to be connected to our model then 
+the best way to predict its value in the last layer is to learn to mimic it 
+(think making center weight equal to one and all others to zero). 
+Zeroing center pixel in first layer mask breaks this convenient information flow and forces the model 
+to learn to predict the pixel based on previous inputs.
+
+How does masking works in PixelCNN?
+
+masks - are way to restrict information flow from ‘future’ pixels into one we’re predicting
+
+One way (described in a paper) is to use masked convolutions: all we need is just zero out some
+weights in convolution filters, like that. It is easy to see, that information from pixels below 
+won’t reach target (center) pixel as well as from pixels on the same line to the right of target.
+
+1 1 1 1 1
+1 1 1 1 1 
+1 1 0 0 0
+0 0 0 0 0
+0 0 0 0 0
+
+In paper authors actually allow information from R (red) channel go into G (green),
+and from R and G go into B. So we have ordering not only within spatial dimensions but 
+also within source channels (think colors) too.
+"""
