@@ -43,6 +43,8 @@ class MaskedConv2d(nn.Conv2d):
         
         self.mask[:, :, height // 2 + 1:] = 0 - setting the mask to zero from the center of the height to the end of the height
         
+        mask_type == 'A' - if the mask type is 'A' then we are setting the mask to zero from the center of the width + 1 
+        
         Type A mask (7×7 kernel):    Type B mask (7×7 kernel):
         
             1 1 1 1 0 0 0               1 1 1 1 0 0 0
@@ -65,7 +67,7 @@ class MaskedConv2d(nn.Conv2d):
         
     def forward(self, x):
         self.weight.data *= self.mask
-        return super().forward(x)
+        return super().forward(x)   # why super().forward(x) ? because we are inheriting from nn.Conv2d and we are overriding the forward method
     
 class PixelCNN(nn.Module):
     def __init__(self):
