@@ -5,7 +5,7 @@
 #### 2. Variational Auto-Encoders (VAEs) [completed]
 #### 3. Denoising Auto-Encoders (DAEs) [completed]
 #### 3.5. PixelCNN (autoregressive model) [completed]
-#### 4. Vector Quantized Variational Autoencoders (VQ-VAEs)
+#### 4. Vector Quantized Variational Autoencoders (VQ-VAEs) [Encoder/Decoder needs to be implemented]
 
 
 ### Note: PixelCNN was implemented because VQ-VAE is the 'combination' of VAE + PixelCNN (autoregressive models)
